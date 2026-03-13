@@ -79,6 +79,14 @@ namespace Unity.FPS.AI
             switch (AiState)
             {
                 case AIState.Attack:
+                    // ⚡⚡⚡ ДОБАВЛЕНА ПРОВЕРКА ⚡⚡⚡
+                    if (m_EnemyController == null || m_EnemyController.KnownDetectedTarget == null)
+                    {
+                        // Если нет цели, переходим в Idle
+                        AiState = AIState.Idle;
+                        return;
+                    }
+
                     bool mustShoot = Time.time > m_TimeStartedDetection + DetectionFireDelay;
                     // Calculate the desired rotation of our turret (aim at target)
                     Vector3 directionToTarget =
@@ -165,6 +173,49 @@ namespace Unity.FPS.AI
 
             Animator.SetBool(k_AnimIsActiveParameter, false);
             m_TimeLostDetection = Time.time;
+        }
+
+        // ⚡⚡⚡ НОВЫЙ МЕТОД СБРОСА ⚡⚡⚡
+        public void ResetTurret()
+        {
+            Debug.Log($"Сброс турели: {gameObject.name}");
+
+            // Сбрасываем состояние
+            AiState = AIState.Idle;
+            m_TimeStartedDetection = Mathf.NegativeInfinity;
+            m_TimeLostDetection = Time.time;
+
+            // Сбрасываем аниматор
+            if (Animator != null)
+            {
+                Animator.Rebind();
+                Animator.Update(0f);
+                Animator.SetBool(k_AnimIsActiveParameter, false);
+            }
+
+            // Останавливаем все VFX
+            if (OnDetectVfx != null)
+            {
+                foreach (var vfx in OnDetectVfx)
+                {
+                    if (vfx != null) vfx.Stop();
+                }
+            }
+
+            // Включаем все коллайдеры
+            Collider[] colliders = GetComponentsInChildren<Collider>();
+            foreach (var col in colliders)
+            {
+                if (col != null) col.enabled = true;
+            }
+
+            // Сбрасываем здоровье
+            if (m_Health != null)
+            {
+                m_Health.CurrentHealth = m_Health.MaxHealth;
+            }
+
+            gameObject.SetActive(true);
         }
     }
 }

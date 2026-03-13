@@ -43,6 +43,25 @@ namespace Unity.FPS.AI
             DebugUtility.HandleErrorIfNullFindObject<ActorsManager, DetectionModule>(m_ActorsManager, this);
         }
 
+        // ⚡⚡⚡ НОВЫЙ МЕТОД - ДОБАВЬТЕ ЭТО ⚡⚡⚡
+        public virtual void ResetDetection()
+        {
+            // Сбрасываем все состояния обнаружения
+            KnownDetectedTarget = null;
+            IsTargetInAttackRange = false;
+            IsSeeingTarget = false;
+            HadKnownTarget = false;
+            TimeLastSeenTarget = Mathf.NegativeInfinity;
+
+            // Переинициализируем ActorsManager если нужно
+            if (m_ActorsManager == null)
+            {
+                m_ActorsManager = FindAnyObjectByType<ActorsManager>();
+            }
+
+            Debug.Log($"DetectionModule сброшен для {gameObject.name}");
+        }
+
         public virtual void HandleTargetDetection(Actor actor, Collider[] selfColliders)
         {
             // Handle known target detection timeout

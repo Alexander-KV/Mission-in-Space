@@ -5,13 +5,15 @@ namespace Unity.FPS.Game
 {
     public class GameFlowManager : MonoBehaviour
     {
-        [Header("Parameters")] [Tooltip("Duration of the fade-to-black at the end of the game")]
+        [Header("Parameters")]
+        [Tooltip("Duration of the fade-to-black at the end of the game")]
         public float EndSceneLoadDelay = 3f;
 
         [Tooltip("The canvas group of the fade-to-black screen")]
         public CanvasGroup EndGameFadeCanvasGroup;
 
-        [Header("Win")] [Tooltip("This string has to be the name of the scene you want to load when winning")]
+        [Header("Win")]
+        [Tooltip("This string has to be the name of the scene you want to load when winning")]
         public string WinSceneName = "WinScene";
 
         [Tooltip("Duration of delay before the fade-to-black, if winning")]
@@ -24,9 +26,14 @@ namespace Unity.FPS.Game
 
         [Tooltip("Sound played on win")] public AudioClip VictorySound;
 
-        [Header("Lose")] [Tooltip("This string has to be the name of the scene you want to load when losing")]
+        [Header("Lose")]
+        [Tooltip("This string has to be the name of the scene you want to load when losing")]
         public string LoseSceneName = "LoseScene";
 
+        // ⚡⚡⚡ ДОБАВЬТЕ ЭТО ПОЛЕ ⚡⚡⚡
+        [Header("Restart")]
+        [Tooltip("Check this if you want to restart the current scene instead of loading a separate scene")]
+        public bool RestartCurrentScene = true;
 
         public bool GameIsEnding { get; private set; }
 
@@ -56,7 +63,12 @@ namespace Unity.FPS.Game
                 // See if it's time to load the end scene (after the delay)
                 if (Time.time >= m_TimeLoadEndGameScene)
                 {
-                    SceneManager.LoadScene(m_SceneToLoad);
+                    // ⚡⚡⚡ ИЗМЕНЕНИЕ ЗДЕСЬ ⚡⚡⚡
+                    // Всегда перезагружаем текущую сцену вместо загрузки Win/Lose сцен
+                    string currentSceneName = SceneManager.GetActiveScene().name;
+                    Debug.Log($"Перезагрузка сцены: {currentSceneName}");
+                    SceneManager.LoadScene(currentSceneName);
+
                     GameIsEnding = false;
                 }
             }
@@ -74,6 +86,7 @@ namespace Unity.FPS.Game
             // Remember that we need to load the appropriate end scene after a delay
             GameIsEnding = true;
             EndGameFadeCanvasGroup.gameObject.SetActive(true);
+
             if (win)
             {
                 m_SceneToLoad = WinSceneName;
@@ -86,14 +99,6 @@ namespace Unity.FPS.Game
                 audioSource.outputAudioMixerGroup = AudioUtility.GetAudioGroup(AudioUtility.AudioGroups.HUDVictory);
                 audioSource.PlayScheduled(AudioSettings.dspTime + DelayBeforeWinMessage);
 
-                // create a game message
-                //var message = Instantiate(WinGameMessagePrefab).GetComponent<DisplayMessage>();
-                //if (message)
-                //{
-                //    message.delayBeforeShowing = delayBeforeWinMessage;
-                //    message.GetComponent<Transform>().SetAsLastSibling();
-                //}
-
                 DisplayMessageEvent displayMessage = Events.DisplayMessageEvent;
                 displayMessage.Message = WinGameMessage;
                 displayMessage.DelayBeforeDisplay = DelayBeforeWinMessage;
@@ -104,6 +109,18 @@ namespace Unity.FPS.Game
                 m_SceneToLoad = LoseSceneName;
                 m_TimeLoadEndGameScene = Time.time + EndSceneLoadDelay;
             }
+        }
+
+        // ⚡⚡⚡ НОВЫЙ МЕТОД ДЛЯ РЕСТАРТА ИЗ UI ⚡⚡⚡
+        public void RestartGame()
+        {
+            Debug.Log("Рестарт игры...");
+
+            // Если вы хотите сбрасывать врагов без перезагрузки сцены,
+            // то нужно добавить другой подход. Но проще перезагрузить сцену.
+
+            // Перезагружаем текущую сцену
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
 
         void OnDestroy()

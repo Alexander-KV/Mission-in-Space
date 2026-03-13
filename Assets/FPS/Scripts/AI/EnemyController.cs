@@ -486,5 +486,82 @@ namespace Unity.FPS.AI
                 m_LastTimeWeaponSwapped = Mathf.NegativeInfinity;
             }
         }
+
+        // ⚡⚡⚡ НОВЫЙ МЕТОД - полный сброс врага ⚡⚡⚡
+        public void ResetEnemy()
+        {
+            Debug.Log($"Сброс врага: {gameObject.name}");
+
+            // 1. Сбрасываем здоровье
+            if (m_Health != null)
+            {
+                // Возвращаем полное здоровье
+                m_Health.CurrentHealth = m_Health.MaxHealth;
+            }
+
+            // 2. Сбрасываем детекшн модуль
+            if (DetectionModule != null)
+            {
+                // Вызываем метод сброса, который мы добавили ранее
+                DetectionModule.ResetDetection();
+            }
+
+            // 3. Сбрасываем навигацию
+            if (NavMeshAgent != null)
+            {
+                NavMeshAgent.enabled = true;
+                NavMeshAgent.isStopped = false;
+                NavMeshAgent.ResetPath();
+                NavMeshAgent.velocity = Vector3.zero;
+
+                // Проверяем, находится ли агент на NavMesh
+                if (!NavMeshAgent.isOnNavMesh)
+                {
+                    NavMeshHit hit;
+                    if (NavMesh.SamplePosition(transform.position, out hit, 10f, NavMesh.AllAreas))
+                    {
+                        NavMeshAgent.Warp(hit.position);
+                        transform.position = hit.position;
+                        Debug.Log($"{gameObject.name} перемещен на NavMesh");
+                    }
+                }
+            }
+
+            // 4. Сбрасываем путь патруля
+            ResetPathDestination();
+            SetPathDestinationToClosestNode();
+
+            // 5. Включаем все коллайдеры
+            if (m_SelfColliders != null)
+            {
+                foreach (var col in m_SelfColliders)
+                {
+                    if (col != null)
+                        col.enabled = true;
+                }
+            }
+
+            // 6. Сбрасываем аниматор (если есть)
+            Animator anim = GetComponentInChildren<Animator>();
+            if (anim != null)
+            {
+                anim.Rebind();
+                anim.Update(0f);
+            }
+
+            // 7. Сбрасываем визуальные эффекты
+            m_LastTimeDamaged = float.NegativeInfinity;
+            m_WasDamagedThisFrame = false;
+
+            // 8. Сбрасываем оружие на первое
+            m_CurrentWeaponIndex = 0;
+            m_CurrentWeapon = m_Weapons?.Length > 0 ? m_Weapons[0] : null;
+            m_LastTimeWeaponSwapped = Mathf.NegativeInfinity;
+
+            // 9. Активируем врага
+            gameObject.SetActive(true);
+
+            Debug.Log($"Враг {gameObject.name} успешно сброшен");
+        }
     }
 }
