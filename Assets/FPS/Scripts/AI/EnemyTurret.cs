@@ -12,17 +12,21 @@ namespace Unity.FPS.AI
             Attack,
         }
 
+        [Header("Turret Setup")]
         public Transform TurretPivot;
         public Transform TurretAimPoint;
         public Animator Animator;
+
+        [Header("Rotation")]
         public float AimRotationSharpness = 5f;
         public float LookAtRotationSharpness = 2.5f;
+
+        [Header("Combat")]
         public float DetectionFireDelay = 1f;
         public float AimingTransitionBlendTime = 1f;
 
-        [Tooltip("The random hit damage effects")]
+        [Header("Effects")]
         public ParticleSystem[] RandomHitSparks;
-
         public ParticleSystem[] OnDetectVfx;
         public AudioClip OnDetectSfx;
 
@@ -30,37 +34,45 @@ namespace Unity.FPS.AI
 
         EnemyController m_EnemyController;
         Health m_Health;
+
         Quaternion m_RotationWeaponForwardToPivot;
+
         float m_TimeStartedDetection;
         float m_TimeLostDetection;
+
         Quaternion m_PreviousPivotAimingRotation;
         Quaternion m_PivotAimingRotation;
 
         const string k_AnimOnDamagedParameter = "OnDamaged";
         const string k_AnimIsActiveParameter = "IsActive";
 
-        void Start()
+        void Awake()
         {
             m_Health = GetComponent<Health>();
-            DebugUtility.HandleErrorIfNullGetComponent<Health, EnemyTurret>(m_Health, this, gameObject);
-            m_Health.OnDamaged += OnDamaged;
-
             m_EnemyController = GetComponent<EnemyController>();
-            DebugUtility.HandleErrorIfNullGetComponent<EnemyController, EnemyTurret>(m_EnemyController, this,
-                gameObject);
+
+            DebugUtility.HandleErrorIfNullGetComponent<Health, EnemyTurret>(m_Health, this, gameObject);
+            DebugUtility.HandleErrorIfNullGetComponent<EnemyController, EnemyTurret>(m_EnemyController, this, gameObject);
+        }
+
+        void Start()
+        {
+            m_Health.OnDamaged += OnDamaged;
 
             m_EnemyController.onDetectedTarget += OnDetectedTarget;
             m_EnemyController.onLostTarget += OnLostTarget;
 
-            // Remember the rotation offset between the pivot's forward and the weapon's forward
             m_RotationWeaponForwardToPivot =
-                Quaternion.Inverse(m_EnemyController.GetCurrentWeapon().WeaponMuzzle.rotation) * TurretPivot.rotation;
+                Quaternion.Inverse(m_EnemyController.GetCurrentWeapon().WeaponMuzzle.rotation) *
+                TurretPivot.rotation;
 
-            // Start with idle
             AiState = AIState.Idle;
 
             m_TimeStartedDetection = Mathf.NegativeInfinity;
+            m_TimeLostDetection = Mathf.NegativeInfinity;
+
             m_PreviousPivotAimingRotation = TurretPivot.rotation;
+            m_PivotAimingRotation = TurretPivot.rotation;
         }
 
         void Update()
@@ -75,35 +87,52 @@ namespace Unity.FPS.AI
 
         void UpdateCurrentAiState()
         {
-            // Handle logic 
             switch (AiState)
             {
                 case AIState.Attack:
-                    // ⚡⚡⚡ ДОБАВЛЕНА ПРОВЕРКА ⚡⚡⚡
-                    if (m_EnemyController == null || m_EnemyController.KnownDetectedTarget == null)
+
+                    if (m_EnemyController == null ||
+                        m_EnemyController.KnownDetectedTarget == null)
                     {
-                        // Если нет цели, переходим в Idle
                         AiState = AIState.Idle;
                         return;
                     }
 
-                    bool mustShoot = Time.time > m_TimeStartedDetection + DetectionFireDelay;
-                    // Calculate the desired rotation of our turret (aim at target)
-                    Vector3 directionToTarget =
-                        (m_EnemyController.KnownDetectedTarget.transform.position - TurretAimPoint.position).normalized;
-                    Quaternion offsettedTargetRotation =
-                        Quaternion.LookRotation(directionToTarget) * m_RotationWeaponForwardToPivot;
-                    m_PivotAimingRotation = Quaternion.Slerp(m_PreviousPivotAimingRotation, offsettedTargetRotation,
-                        (mustShoot ? AimRotationSharpness : LookAtRotationSharpness) * Time.deltaTime);
+                    bool mustShoot = Time.time >
+                                     m_TimeStartedDetection + DetectionFireDelay;
 
-                    // shoot
+                    Vector3 directionToTarget =
+                        (m_EnemyController.KnownDetectedTarget.transform.position -
+                         TurretAimPoint.position);
+
+                    if (directionToTarget.sqrMagnitude < 0.001f)
+                        return;
+
+                    directionToTarget.Normalize();
+
+                    Quaternion targetRotation =
+                        Quaternion.LookRotation(directionToTarget) *
+                        m_RotationWeaponForwardToPivot;
+
+                    float rotationSpeed = mustShoot ?
+                        AimRotationSharpness :
+                        LookAtRotationSharpness;
+
+                    m_PivotAimingRotation =
+                        Quaternion.Slerp(
+                            m_PreviousPivotAimingRotation,
+                            targetRotation,
+                            rotationSpeed * Time.deltaTime);
+
                     if (mustShoot)
                     {
                         Vector3 correctedDirectionToTarget =
-                            (m_PivotAimingRotation * Quaternion.Inverse(m_RotationWeaponForwardToPivot)) *
+                            (m_PivotAimingRotation *
+                             Quaternion.Inverse(m_RotationWeaponForwardToPivot)) *
                             Vector3.forward;
 
-                        m_EnemyController.TryAtack(TurretAimPoint.position + correctedDirectionToTarget);
+                        m_EnemyController.TryAtack(
+                            TurretAimPoint.position + correctedDirectionToTarget);
                     }
 
                     break;
@@ -115,12 +144,18 @@ namespace Unity.FPS.AI
             switch (AiState)
             {
                 case AIState.Attack:
+
                     TurretPivot.rotation = m_PivotAimingRotation;
                     break;
+
                 default:
-                    // Use the turret rotation of the animation
-                    TurretPivot.rotation = Quaternion.Slerp(m_PivotAimingRotation, TurretPivot.rotation,
-                        (Time.time - m_TimeLostDetection) / AimingTransitionBlendTime);
+
+                    TurretPivot.rotation = Quaternion.Slerp(
+                        m_PivotAimingRotation,
+                        TurretPivot.rotation,
+                        (Time.time - m_TimeLostDetection) /
+                        AimingTransitionBlendTime);
+
                     break;
             }
 
@@ -131,61 +166,68 @@ namespace Unity.FPS.AI
         {
             if (RandomHitSparks.Length > 0)
             {
-                int n = Random.Range(0, RandomHitSparks.Length - 1);
+                int n = Random.Range(0, RandomHitSparks.Length);
                 RandomHitSparks[n].Play();
             }
 
-            Animator.SetTrigger(k_AnimOnDamagedParameter);
+            if (Animator != null)
+                Animator.SetTrigger(k_AnimOnDamagedParameter);
         }
 
         void OnDetectedTarget()
         {
-            if (AiState == AIState.Idle)
-            {
-                AiState = AIState.Attack;
-            }
+            Debug.Log("Turret detected player: " + name);
 
-            for (int i = 0; i < OnDetectVfx.Length; i++)
+            if (AiState == AIState.Idle)
+                AiState = AIState.Attack;
+
+            foreach (var vfx in OnDetectVfx)
             {
-                OnDetectVfx[i].Play();
+                if (vfx != null)
+                    vfx.Play();
             }
 
             if (OnDetectSfx)
             {
-                AudioUtility.CreateSFX(OnDetectSfx, transform.position, AudioUtility.AudioGroups.EnemyDetection, 1f);
+                AudioUtility.CreateSFX(
+                    OnDetectSfx,
+                    transform.position,
+                    AudioUtility.AudioGroups.EnemyDetection,
+                    1f);
             }
 
-            Animator.SetBool(k_AnimIsActiveParameter, true);
+            if (Animator != null)
+                Animator.SetBool(k_AnimIsActiveParameter, true);
+
             m_TimeStartedDetection = Time.time;
         }
 
         void OnLostTarget()
         {
             if (AiState == AIState.Attack)
-            {
                 AiState = AIState.Idle;
-            }
 
-            for (int i = 0; i < OnDetectVfx.Length; i++)
+            foreach (var vfx in OnDetectVfx)
             {
-                OnDetectVfx[i].Stop();
+                if (vfx != null)
+                    vfx.Stop();
             }
 
-            Animator.SetBool(k_AnimIsActiveParameter, false);
+            if (Animator != null)
+                Animator.SetBool(k_AnimIsActiveParameter, false);
+
             m_TimeLostDetection = Time.time;
         }
 
-        // ⚡⚡⚡ НОВЫЙ МЕТОД СБРОСА ⚡⚡⚡
         public void ResetTurret()
         {
-            Debug.Log($"Сброс турели: {gameObject.name}");
+            Debug.Log("Reset turret: " + name);
 
-            // Сбрасываем состояние
             AiState = AIState.Idle;
+
             m_TimeStartedDetection = Mathf.NegativeInfinity;
             m_TimeLostDetection = Time.time;
 
-            // Сбрасываем аниматор
             if (Animator != null)
             {
                 Animator.Rebind();
@@ -193,27 +235,26 @@ namespace Unity.FPS.AI
                 Animator.SetBool(k_AnimIsActiveParameter, false);
             }
 
-            // Останавливаем все VFX
             if (OnDetectVfx != null)
             {
                 foreach (var vfx in OnDetectVfx)
                 {
-                    if (vfx != null) vfx.Stop();
+                    if (vfx != null)
+                        vfx.Stop();
                 }
             }
 
-            // Включаем все коллайдеры
-            Collider[] colliders = GetComponentsInChildren<Collider>();
+            Collider[] colliders =
+                GetComponentsInChildren<Collider>();
+
             foreach (var col in colliders)
             {
-                if (col != null) col.enabled = true;
+                if (col != null)
+                    col.enabled = true;
             }
 
-            // Сбрасываем здоровье
             if (m_Health != null)
-            {
                 m_Health.CurrentHealth = m_Health.MaxHealth;
-            }
 
             gameObject.SetActive(true);
         }
