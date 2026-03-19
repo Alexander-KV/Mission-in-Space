@@ -121,7 +121,7 @@ AnimatorController:
   - serializedVersion: 5
     m_Name: RifleActions
     m_StateMachine: {fileID: 110780854}
-    m_Mask: {fileID: 101100000, guid: 4593a407a67cd194084dcf27094c85b4, type: 2}
+    m_Mask: {fileID: 0}
     m_Motions: []
     m_Behaviours: []
     m_BlendingMode: 0
