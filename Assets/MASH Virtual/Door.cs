@@ -22,16 +22,15 @@ public class SciFiDoor : MonoBehaviour
         leftClosed = LeftDoor.localPosition;
         rightClosed = RightDoor.localPosition;
 
-        leftOpen = leftClosed + Vector3.left * OpenDistance;
-        rightOpen = rightClosed + Vector3.right * OpenDistance;
+        // Используем ось родителя (двери)
+        Vector3 sideDirection = transform.right;
+
+        leftOpen = leftClosed - sideDirection * OpenDistance;
+        rightOpen = rightClosed + sideDirection * OpenDistance;
     }
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.E))
-        {
-            Debug.Log("E pressed");
-        }
         if (playerNear && Input.GetKeyDown(KeyCode.E))
         {
             isOpen = !isOpen;
@@ -58,6 +57,7 @@ public class SciFiDoor : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             playerNear = true;
+            Debug.Log("Player near door");
         }
     }
 
