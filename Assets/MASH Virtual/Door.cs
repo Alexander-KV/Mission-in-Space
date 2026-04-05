@@ -1,71 +1,88 @@
 using UnityEngine;
+using TMPro;
 
 public class SciFiDoor : MonoBehaviour
 {
+    [Header("Створки")]
     public Transform LeftDoor;
     public Transform RightDoor;
 
-    public float OpenDistance = 1.5f;
-    public float Speed = 3f;
+    [Header("Настройки")]
+    public float OpenDistance = 2.5f;
+    public float Speed = 3.0f;
 
-    bool playerNear;
-    bool isOpen;
+    public Vector3 MoveDirection = new Vector3(1, 0, 0);
 
-    Vector3 leftClosed;
-    Vector3 rightClosed;
+    [Header("UI")]
+    public GameObject promptUI;
+    public KeyCode interactKey = KeyCode.E;
 
-    Vector3 leftOpen;
-    Vector3 rightOpen;
+    private bool isOpen = false;
+    private bool isAnimating = false;
+    private float animProgress = 0f;
+    private bool playerNear = false;
+
+    private Vector3 leftClosed, rightClosed;
+    private Vector3 leftOpen, rightOpen;
 
     void Start()
     {
+        if (LeftDoor == null || RightDoor == null) return;
+
+        // 1. Запоминаем исходные (закрытые) позиции
         leftClosed = LeftDoor.localPosition;
         rightClosed = RightDoor.localPosition;
 
-        // Используем ось родителя (двери)
-        Vector3 sideDirection = transform.right;
+        // 2. Считаем открытые позиции
+        Vector3 dir = MoveDirection.normalized;
+        leftOpen = leftClosed - dir * OpenDistance;
+        rightOpen = rightClosed + dir * OpenDistance;
 
-        leftOpen = leftClosed - sideDirection * OpenDistance;
-        rightOpen = rightClosed + sideDirection * OpenDistance;
+        // 3. Принудительно ставим в закрытое состояние при старте
+        LeftDoor.localPosition = leftClosed;
+        RightDoor.localPosition = rightClosed;
+
+        if (promptUI != null) promptUI.SetActive(false);
     }
 
     void Update()
     {
-        if (playerNear && Input.GetKeyDown(KeyCode.E))
+        // Показываем UI, если игрок рядом
+        if (promptUI != null) promptUI.SetActive(playerNear);
+
+        // Обработка нажатия E (только если анимация не идёт)
+        if (playerNear && Input.GetKeyDown(interactKey) && !isAnimating)
         {
             isOpen = !isOpen;
+            isAnimating = true;
         }
 
-        Vector3 targetLeft = isOpen ? leftOpen : leftClosed;
-        Vector3 targetRight = isOpen ? rightOpen : rightClosed;
+        // Плавная анимация
+        if (isAnimating)
+        {
+            float target = isOpen ? 1f : 0f;
+            animProgress = Mathf.MoveTowards(animProgress, target, Speed * Time.deltaTime);
 
-        LeftDoor.localPosition = Vector3.Lerp(
-            LeftDoor.localPosition,
-            targetLeft,
-            Time.deltaTime * Speed
-        );
+            LeftDoor.localPosition = Vector3.Lerp(leftClosed, leftOpen, animProgress);
+            RightDoor.localPosition = Vector3.Lerp(rightClosed, rightOpen, animProgress);
 
-        RightDoor.localPosition = Vector3.Lerp(
-            RightDoor.localPosition,
-            targetRight,
-            Time.deltaTime * Speed
-        );
+            // Фиксация в конечной точке
+            if (Mathf.Approximately(animProgress, target))
+            {
+                isAnimating = false;
+                LeftDoor.localPosition = isOpen ? leftOpen : leftClosed;
+                RightDoor.localPosition = isOpen ? rightOpen : rightClosed;
+            }
+        }
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            playerNear = true;
-            Debug.Log("Player near door");
-        }
+        if (other.CompareTag("Player")) playerNear = true;
     }
 
     void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("Player"))
-        {
-            playerNear = false;
-        }
+        if (other.CompareTag("Player")) playerNear = false;
     }
 }
