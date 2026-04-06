@@ -10,8 +10,11 @@ public class SciFiDoor : MonoBehaviour
     [Header("Настройки")]
     public float OpenDistance = 2.5f;
     public float Speed = 3.0f;
-
     public Vector3 MoveDirection = new Vector3(1, 0, 0);
+
+    [Header("Авто-закрытие")]
+    public bool AutoClose = true;          // Авто-закрытие включено?
+    public float CloseDelay = 10f;         // Задержка перед закрытием (сек)
 
     [Header("UI")]
     public GameObject promptUI;
@@ -21,6 +24,7 @@ public class SciFiDoor : MonoBehaviour
     private bool isAnimating = false;
     private float animProgress = 0f;
     private bool playerNear = false;
+    private float openTime = 0f;
 
     private Vector3 leftClosed, rightClosed;
     private Vector3 leftOpen, rightOpen;
@@ -50,11 +54,19 @@ public class SciFiDoor : MonoBehaviour
         // Показываем UI, если игрок рядом
         if (promptUI != null) promptUI.SetActive(playerNear);
 
-        // Обработка нажатия E (только если анимация не идёт)
+        // Обработка нажатия E — ВСЕГДА работает (если не анимация)
         if (playerNear && Input.GetKeyDown(interactKey) && !isAnimating)
         {
-            isOpen = !isOpen;
-            isAnimating = true;
+            ToggleDoor();
+        }
+
+        // Авто-закрытие (только если дверь открыта и не анимируется)
+        if (AutoClose && isOpen && !isAnimating)
+        {
+            if (Time.time - openTime >= CloseDelay)
+            {
+                CloseDoor();
+            }
         }
 
         // Плавная анимация
@@ -84,5 +96,41 @@ public class SciFiDoor : MonoBehaviour
     void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player")) playerNear = false;
+    }
+
+    // ТОГГЛ: всегда переключает состояние (открыто закрыто)
+    public void ToggleDoor()
+    {
+        if (isAnimating) return; // Ждём окончания анимации
+
+        isOpen = !isOpen;
+        isAnimating = true;
+
+        // Если открыли — запускаем таймер авто-закрытия
+        if (isOpen && AutoClose)
+        {
+            openTime = Time.time;
+        }
+    }
+
+    // Открыть (если закрыта)
+    public void OpenDoor()
+    {
+        if (!isOpen && !isAnimating)
+        {
+            isOpen = true;
+            isAnimating = true;
+            if (AutoClose) openTime = Time.time;
+        }
+    }
+
+    // Закрыть (если открыта)
+    public void CloseDoor()
+    {
+        if (isOpen && !isAnimating)
+        {
+            isOpen = false;
+            isAnimating = true;
+        }
     }
 }
