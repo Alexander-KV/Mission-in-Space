@@ -1,42 +1,73 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
+using Unity.FPS.Game;
 
 namespace Unity.FPS.Game
 {
     public class ObjectiveManager : MonoBehaviour
     {
-        List<Objective> m_Objectives = new List<Objective>();
-        bool m_ObjectivesCompleted = false;
+        [Header("Sequential Objectives")]
+        public List<Objective> ObjectivesSequence = new List<Objective>();
 
-        void Awake()
+        int m_CurrentObjectiveIndex = -1;
+        bool m_AllObjectivesCompleted = false;
+        bool m_IsTransitioning = false;
+
+        void Start()
         {
-            Objective.OnObjectiveCreated += RegisterObjective;
-        }
+            // Деактивируем все цели в последовательности
+            foreach (var obj in ObjectivesSequence)
+            {
+                if (obj != null)
+                    obj.gameObject.SetActive(false);
+            }
 
-        void RegisterObjective(Objective objective) => m_Objectives.Add(objective);
+            // Активируем первую
+            if (ObjectivesSequence.Count > 0)
+            {
+                m_CurrentObjectiveIndex = 0;
+                ObjectivesSequence[0].gameObject.SetActive(true);
+            }
+        }
 
         void Update()
         {
-            if (m_Objectives.Count == 0 || m_ObjectivesCompleted)
+            if (m_AllObjectivesCompleted || ObjectivesSequence.Count == 0)
                 return;
 
-            for (int i = 0; i < m_Objectives.Count; i++)
+            if (m_CurrentObjectiveIndex >= 0 && m_CurrentObjectiveIndex < ObjectivesSequence.Count)
             {
-                // pass every objectives to check if they have been completed
-                if (m_Objectives[i].IsBlocking())
+                Objective current = ObjectivesSequence[m_CurrentObjectiveIndex];
+                if (current != null && current.IsCompleted && !m_IsTransitioning)
                 {
-                    // break the loop as soon as we find one uncompleted objective
-                    return;
+                    StartCoroutine(AdvanceToNextObjective(current));
                 }
             }
-
-            m_ObjectivesCompleted = true;
-            EventManager.Broadcast(Events.AllObjectivesCompletedEvent);
         }
 
-        void OnDestroy()
+        IEnumerator AdvanceToNextObjective(Objective completedObjective)
         {
-            Objective.OnObjectiveCreated -= RegisterObjective;
+            m_IsTransitioning = true;
+
+            // Даём время на анимацию завершения в UI
+            yield return new WaitForSeconds(1f);
+
+            if (completedObjective != null)
+                Destroy(completedObjective.gameObject);
+
+            m_CurrentObjectiveIndex++;
+            if (m_CurrentObjectiveIndex < ObjectivesSequence.Count)
+            {
+                ObjectivesSequence[m_CurrentObjectiveIndex].gameObject.SetActive(true);
+            }
+            else
+            {
+                m_AllObjectivesCompleted = true;
+                EventManager.Broadcast(Events.AllObjectivesCompletedEvent);
+            }
+
+            m_IsTransitioning = false;
         }
     }
 }

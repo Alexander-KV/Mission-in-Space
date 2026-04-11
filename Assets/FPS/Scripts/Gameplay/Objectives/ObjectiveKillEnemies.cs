@@ -1,4 +1,5 @@
-﻿using Unity.FPS.Game;
+﻿using System.Collections.Generic;
+using Unity.FPS.Game;
 using UnityEngine;
 
 namespace Unity.FPS.Gameplay
@@ -14,7 +15,13 @@ namespace Unity.FPS.Gameplay
         [Tooltip("Start sending notification about remaining enemies when this amount of enemies is left")]
         public int NotificationEnemiesRemainingThreshold = 3;
 
+        [Header("Specific Enemies Tracking")]
+        [Tooltip("Drag all enemy GameObjects that belong to this objective's zone. If empty, will track all enemies in scene.")]
+        public List<GameObject> EnemiesToTrack = new List<GameObject>();
+
         int m_KillTotal;
+        int m_InitialEnemyCount;
+        int m_RemainingEnemiesInZone;
 
         protected override void Start()
         {
@@ -22,10 +29,18 @@ namespace Unity.FPS.Gameplay
 
             EventManager.AddListener<EnemyKillEvent>(OnEnemyKilled);
 
-            // set a title and description specific for this type of objective, if it hasn't one
+            // Убираем пустые ссылки
+            EnemiesToTrack.RemoveAll(e => e == null);
+            m_InitialEnemyCount = EnemiesToTrack.Count;
+            m_RemainingEnemiesInZone = EnemiesToTrack.Count;
+
             if (string.IsNullOrEmpty(Title))
-                Title = "Eliminate " + (MustKillAllEnemies ? "all the" : KillsToCompleteObjective.ToString()) +
-                        " enemies";
+            {
+                if (EnemiesToTrack.Count > 0)
+                    Title = $"Eliminate {m_InitialEnemyCount} enemies in zone";
+                else
+                    Title = "Eliminate " + (MustKillAllEnemies ? "all the" : KillsToCompleteObjective.ToString()) + " enemies";
+            }
 
             if (string.IsNullOrEmpty(Description))
                 Description = GetUpdatedCounterAmount();
@@ -36,14 +51,47 @@ namespace Unity.FPS.Gameplay
             if (IsCompleted)
                 return;
 
+            GameObject killedEnemy = evt.Enemy != null ? evt.Enemy.gameObject : null;
+            if (killedEnemy == null)
+                return;
+
+            bool shouldCount = false;
+            if (EnemiesToTrack.Count > 0)
+            {
+                // Ищем убитого врага в нашем списке
+                for (int i = 0; i < EnemiesToTrack.Count; i++)
+                {
+                    if (EnemiesToTrack[i] == killedEnemy)
+                    {
+                        shouldCount = true;
+                        EnemiesToTrack.RemoveAt(i);
+                        m_RemainingEnemiesInZone = EnemiesToTrack.Count;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // Глобальный режим — считаем всех
+                shouldCount = true;
+            }
+
+            if (!shouldCount)
+                return;
+
             m_KillTotal++;
 
-            if (MustKillAllEnemies)
-                KillsToCompleteObjective = evt.RemainingEnemyCount + m_KillTotal;
+            if (EnemiesToTrack.Count == 0)
+            {
+                if (m_InitialEnemyCount > 0)
+                    KillsToCompleteObjective = m_InitialEnemyCount;
+                else if (MustKillAllEnemies)
+                    KillsToCompleteObjective = evt.RemainingEnemyCount + m_KillTotal;
+            }
 
-            int targetRemaining = MustKillAllEnemies ? evt.RemainingEnemyCount : KillsToCompleteObjective - m_KillTotal;
+            int targetRemaining = (EnemiesToTrack.Count > 0) ? m_RemainingEnemiesInZone
+                : (MustKillAllEnemies ? evt.RemainingEnemyCount : KillsToCompleteObjective - m_KillTotal);
 
-            // update the objective text according to how many enemies remain to kill
             if (targetRemaining == 0)
             {
                 CompleteObjective(string.Empty, GetUpdatedCounterAmount(), "Objective complete : " + Title);
@@ -57,18 +105,24 @@ namespace Unity.FPS.Gameplay
             }
             else
             {
-                // create a notification text if needed, if it stays empty, the notification will not be created
                 string notificationText = NotificationEnemiesRemainingThreshold >= targetRemaining
                     ? targetRemaining + " enemies to kill left"
                     : string.Empty;
-
                 UpdateObjective(string.Empty, GetUpdatedCounterAmount(), notificationText);
             }
         }
 
         string GetUpdatedCounterAmount()
         {
-            return m_KillTotal + " / " + KillsToCompleteObjective;
+            if (m_InitialEnemyCount > 0)
+            {
+                int killed = m_InitialEnemyCount - m_RemainingEnemiesInZone;
+                return killed + " / " + m_InitialEnemyCount;
+            }
+            else
+            {
+                return m_KillTotal + " / " + KillsToCompleteObjective;
+            }
         }
 
         void OnDestroy()
