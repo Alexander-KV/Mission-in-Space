@@ -19,6 +19,9 @@ namespace Unity.FPS.Gameplay
         [Tooltip("Drag all enemy GameObjects that belong to this objective's zone. If empty, will track all enemies in scene.")]
         public List<GameObject> EnemiesToTrack = new List<GameObject>();
 
+        [Tooltip("Enemies that should be activated when this objective starts.")]
+        public List<GameObject> EnemiesToActivate = new List<GameObject>();
+
         int m_KillTotal;
         int m_InitialEnemyCount;
         int m_RemainingEnemiesInZone;
@@ -26,6 +29,13 @@ namespace Unity.FPS.Gameplay
         protected override void Start()
         {
             base.Start();
+
+            // Активируем врагов, которые должны появиться с этой целью
+            foreach (var enemy in EnemiesToActivate)
+            {
+                if (enemy != null)
+                    enemy.SetActive(true);
+            }
 
             EventManager.AddListener<EnemyKillEvent>(OnEnemyKilled);
 
