@@ -1,24 +1,42 @@
+using TMPro;
+using Unity.FPS.Game;
+using Unity.FPS.Gameplay;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
+
 public class KeypadPanel3 : MonoBehaviour
 {
     [Header("UI")]
     public TMP_Text codeDisplayText;
     public GameObject panelObject;
-    public TerminalTrigger terminalTrigger;   // ссылка на терминал
+    public TerminalTrigger terminalTrigger;
 
     [Header("Settings")]
     public string correctCode = "123";
     private string currentInput = "";
 
     [Header("Door Reference")]
-    public SciFiDoor targetDoor;   // <-- ИСПРАВЛЕНО: тип SciFiDoor
+    public SciFiDoor targetDoor;
+
+    [Header("Player Control")]
+    public GameObject player;
+    public GameObject crosshair;  // перетащите сюда объект прицела (например, Crosshair)
 
     void Start()
     {
         if (panelObject != null)
             panelObject.SetActive(false);
+    }
+
+    void Update()
+    {
+        if (panelObject != null && panelObject.activeSelf)
+        {
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                HidePanel();
+            }
+        }
     }
 
     public void OnNumberClick(string number)
@@ -70,6 +88,7 @@ public class KeypadPanel3 : MonoBehaviour
             panelObject.SetActive(true);
             currentInput = "";
             UpdateDisplay();
+            LockPlayer();
         }
     }
 
@@ -77,5 +96,49 @@ public class KeypadPanel3 : MonoBehaviour
     {
         if (panelObject != null)
             panelObject.SetActive(false);
+        UnlockPlayer();
+    }
+
+    void LockPlayer()
+    {
+        if (player != null)
+        {
+            // Отключаем ввод
+            var input = player.GetComponent<PlayerInputHandler>();
+            if (input != null) input.enabled = false;
+
+            // Отключаем объект с оружием
+            Transform weapon = player.transform.Find("Weapon_Blaster");
+            if (weapon != null)
+                weapon.gameObject.SetActive(false);
+            else
+                Debug.LogWarning("Weapon_Blaster not found on player");
+
+            // Отключаем прицел, если он указан
+            if (crosshair != null)
+                crosshair.SetActive(false);
+
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
+    }
+
+    void UnlockPlayer()
+    {
+        if (player != null)
+        {
+            var input = player.GetComponent<PlayerInputHandler>();
+            if (input != null) input.enabled = true;
+
+            Transform weapon = player.transform.Find("Weapon_Blaster");
+            if (weapon != null)
+                weapon.gameObject.SetActive(true);
+
+            if (crosshair != null)
+                crosshair.SetActive(true);
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
     }
 }
