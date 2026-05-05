@@ -1,42 +1,58 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using System.Collections;
 
 public class TerminalDownloadSystem : MonoBehaviour
 {
-    [Header("️ Настройки")]
-    public float downloadDuration = 300f; // 5 минут (для теста ставьте 10-20)
+    [Header("Настройки")]
+    public float downloadDuration = 120f;
     public GameObject door;
     public Transform enemySpawnPoint;
     public GameObject enemyPrefab;
-    public float spawnInterval = 12f;
+    public float spawnInterval = 5f;
 
-    [Header("🎨 UI")]
-    public GameObject uiPanel;       // Родительская панель (SetActive true/false)
-    public Image progressBar;        // Image тип: Filled
-    public Text statusText;          // Текст прогресса
-    public Text missionText;         // Текст миссии (если есть на сцене)
+    [Header("UI")]
+    public GameObject uiPanel;
+    public Image progressBar;
+    public TextMeshProUGUI statusText;   // ← заменён на TextMeshProUGUI
+    public GameObject promptUI;
 
-    [Header("🔒 Внутреннее")]
     private bool isPlayerInRange = false;
     private bool isDownloading = false;
     private bool isCompleted = false;
     private Coroutine downloadRoutine;
     private Coroutine spawnRoutine;
 
-    void Start()
+    void Awake()
     {
         if (uiPanel != null) uiPanel.SetActive(false);
+        if (promptUI != null) promptUI.SetActive(false);
+    }
+
+    void Start()
+    {
+        StartCoroutine(ForceHidePromptAfterFirstFrame());
+    }
+
+    IEnumerator ForceHidePromptAfterFirstFrame()
+    {
+        yield return new WaitForEndOfFrame();
+        if (promptUI != null) promptUI.SetActive(false);
     }
 
     void Update()
     {
-        // Старая система ввода (Input Manager)
+        if (promptUI != null)
+        {
+            bool shouldShow = isPlayerInRange && !isDownloading && !isCompleted;
+            promptUI.SetActive(shouldShow);
+        }
+
         if (isPlayerInRange && !isDownloading && !isCompleted)
         {
             if (Input.GetKeyDown(KeyCode.E))
             {
-                Debug.Log(" E нажата! Запуск загрузки...");
                 StartDownload();
             }
         }
@@ -45,24 +61,19 @@ public class TerminalDownloadSystem : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
-        {
             isPlayerInRange = true;
-            Debug.Log("✅ Игрок вошёл в зону терминала");
-        }
     }
 
     void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
-        {
             isPlayerInRange = false;
-            Debug.Log("❌ Игрок покинул зону терминала");
-        }
     }
 
     void StartDownload()
     {
         isDownloading = true;
+
         if (uiPanel != null) uiPanel.SetActive(true);
         UpdateUI(0f, "Загрузка чертежей... 0%");
 
@@ -89,7 +100,7 @@ public class TerminalDownloadSystem : MonoBehaviour
 
     IEnumerator SpawnEnemiesRoutine()
     {
-        yield return new WaitForSeconds(2f); // Задержка перед первым врагом
+        yield return new WaitForSeconds(2f);
         while (isDownloading && !isCompleted)
         {
             Instantiate(enemyPrefab, enemySpawnPoint.position, enemySpawnPoint.rotation);
@@ -110,8 +121,7 @@ public class TerminalDownloadSystem : MonoBehaviour
 
         if (spawnRoutine != null) StopCoroutine(spawnRoutine);
 
-        UpdateUI(1f, "✅ Чертежи загружены!");
-        if (missionText != null) missionText.text = "Миссия: Взорвать реактор";
+        UpdateUI(1f, "Чертежи загружены!");
 
         StartCoroutine(HideUIAfterDelay(3f));
     }
@@ -125,9 +135,23 @@ public class TerminalDownloadSystem : MonoBehaviour
     void OpenDoor()
     {
         if (door == null) return;
+
+        var sciFiDoor = door.GetComponent<SciFiDoor>();
+        if (sciFiDoor != null)
+        {
+            sciFiDoor.OpenDoor();
+            return;
+        }
+
+        var verticalDoor = door.GetComponent<VerticalDoor>();
+        if (verticalDoor != null)
+        {
+            verticalDoor.OpenDoor();
+            return;
+        }
+
         Animator anim = door.GetComponent<Animator>();
-        if (anim != null) anim.SetTrigger("Open");
-        // Если аниматора нет, раскомментируй строку ниже:
-        // door.transform.Translate(Vector3.up * 2.5f, Space.World);
+        if (anim != null)
+            anim.SetTrigger("Open");
     }
 }

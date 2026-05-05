@@ -1,60 +1,63 @@
 ﻿using UnityEngine;
-using UnityEngine.UI;
+using System.Collections;
 
 public class Note : MonoBehaviour
 {
-    public string noteTextstr;
-    public GameObject notice;   // "Press E"
-    public GameObject notePanel; // панель с текстом
-    public Text text;
+    [Header("Управление")]
+    public KeyCode interactKey = KeyCode.E;
+
+    [Header("UI элементы")]
+    public GameObject notice;
+    public GameObject notePanel;
 
     private bool playerInZone = false;
 
+    void Awake()
+    {
+        if (notePanel != null) notePanel.SetActive(false);
+        if (notice != null) notice.SetActive(false);
+    }
+
     void Start()
     {
-        if (notePanel != null)
-            notePanel.SetActive(false);
+        StartCoroutine(ForceHideAfterFirstFrame());
+    }
 
-        if (notice != null)
-            notice.SetActive(false);
+    IEnumerator ForceHideAfterFirstFrame()
+    {
+        yield return new WaitForEndOfFrame();
+        if (notePanel != null) notePanel.SetActive(false);
+        if (notice != null) notice.SetActive(false);
     }
 
     void Update()
     {
-        // Открытие записки
-        if (playerInZone && Input.GetKeyDown(KeyCode.E))
+        if (playerInZone && Input.GetKeyDown(interactKey))
         {
-            Debug.Log("Open note");
-
-            text.text = noteTextstr;
-            notePanel.SetActive(true);
-        }
-
-        // Закрытие
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            notePanel.SetActive(false);
+            if (notePanel != null)
+            {
+                bool isActive = notePanel.activeSelf;
+                notePanel.SetActive(!isActive);
+            }
         }
     }
 
-    private void OnTriggerEnter(Collider other)
+    void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
         {
-            Debug.Log("Player entered note zone");
-
             playerInZone = true;
-            notice.SetActive(true);
+            if (notice != null) notice.SetActive(true);
         }
     }
 
-    private void OnTriggerExit(Collider other)
+    void OnTriggerExit(Collider other)
     {
         if (other.CompareTag("Player"))
         {
             playerInZone = false;
-            notice.SetActive(false);
-            notePanel.SetActive(false);
+            if (notice != null) notice.SetActive(false);
+            if (notePanel != null) notePanel.SetActive(false);
         }
     }
 }
