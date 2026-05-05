@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 using TMPro;
+using Unity.FPS.Gameplay;
+using Unity.FPS.Game;
 
 public class SciFiDoor : MonoBehaviour
 {
@@ -22,6 +24,10 @@ public class SciFiDoor : MonoBehaviour
 
     [Header("Безопасность")]
     public bool isLocked = true;   // дверь заперта? (по умолчанию — да)
+
+    [Header("Блокировка по цели")]
+    [Tooltip("Если указана цель, дверь будет заперта до её выполнения.")]
+    public Objective requiredObjective;
 
     private bool isOpen = false;
     private bool isAnimating = false;
@@ -47,6 +53,34 @@ public class SciFiDoor : MonoBehaviour
         RightDoor.localPosition = rightClosed;
 
         if (promptUI != null) promptUI.SetActive(false);
+
+        // Подписываемся на СТАТИЧЕСКОЕ событие завершения цели
+        if (requiredObjective != null)
+        {
+            Objective.OnObjectiveCompleted += OnSomeObjectiveCompleted;
+
+            // Если цель уже выполнена — сразу разблокируем
+            if (requiredObjective.IsCompleted)
+            {
+                isLocked = false;
+            }
+            else
+            {
+                isLocked = true;   // гарантируем блокировку
+            }
+        }
+    }
+
+    // Обработчик статического события: срабатывает при завершении ЛЮБОЙ цели
+    private void OnSomeObjectiveCompleted(Objective obj)
+    {
+        // Проверяем, что завершена именно наша цель
+        if (obj == requiredObjective)
+        {
+            isLocked = false;
+            // Отписываемся, чтобы не срабатывало повторно
+            Objective.OnObjectiveCompleted -= OnSomeObjectiveCompleted;
+        }
     }
 
     void Update()
@@ -123,5 +157,12 @@ public class SciFiDoor : MonoBehaviour
             isOpen = false;
             isAnimating = true;
         }
+    }
+
+    void OnDestroy()
+    {
+        // Отписываемся от статического события при уничтожении объекта
+        if (requiredObjective != null)
+            Objective.OnObjectiveCompleted -= OnSomeObjectiveCompleted;
     }
 }

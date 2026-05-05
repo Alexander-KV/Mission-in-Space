@@ -1,4 +1,6 @@
 using UnityEngine;
+using Unity.FPS.Gameplay;
+using Unity.FPS.Game;
 
 [RequireComponent(typeof(BoxCollider))]
 public class VerticalDoor : MonoBehaviour
@@ -19,6 +21,13 @@ public class VerticalDoor : MonoBehaviour
     [SerializeField] private GameObject _promptUI;
     [SerializeField] private KeyCode _key = KeyCode.E;
 
+    [Header("Блокировка")]
+    public bool isLocked = true;   // дверь заперта? (по умолчанию – да)
+
+    [Header("Блокировка по цели")]
+    [Tooltip("Если указана цель, дверь будет заперта до её выполнения.")]
+    public Objective requiredObjective;
+
     private bool _isOpen;
     private bool _isAnimating;
     private float _progress;
@@ -36,23 +45,46 @@ public class VerticalDoor : MonoBehaviour
         _endPos = _startPos + _direction.normalized * _openHeight;
 
         if (_promptUI != null) _promptUI.SetActive(false);
+
+        // Блокировка по цели
+        if (requiredObjective != null)
+        {
+            Objective.OnObjectiveCompleted += OnSomeObjectiveCompleted;
+            if (requiredObjective.IsCompleted)
+            {
+                isLocked = false;
+            }
+            else
+            {
+                isLocked = true;
+            }
+        }
+    }
+
+    private void OnSomeObjectiveCompleted(Objective obj)
+    {
+        if (obj == requiredObjective)
+        {
+            isLocked = false;
+            Objective.OnObjectiveCompleted -= OnSomeObjectiveCompleted;
+        }
     }
 
     private void Update()
     {
-        // Показываем/скрываем UI
+        // Показываем UI всегда, когда игрок рядом (независимо от блокировки)
         if (_promptUI != null)
         {
-            _promptUI.SetActive(_playerNear);
+            _promptUI.SetActive(_playerNear);   // <-- ИСПРАВЛЕНИЕ
         }
 
-        // Обработка нажатия E — ВСЕГДА работает!
-        if (_playerNear && Input.GetKeyDown(_key))
+        // Обработка нажатия E — только если дверь не заперта
+        if (_playerNear && Input.GetKeyDown(_key) && !_isAnimating && !isLocked)
         {
             ToggleDoor();
         }
 
-        // Авто-закрытие (только если дверь открыта и не анимируется)
+        // Авто-закрытие
         if (_autoClose && _isOpen && !_isAnimating)
         {
             if (Time.time - _openTime >= _closeDelay)
@@ -66,7 +98,6 @@ public class VerticalDoor : MonoBehaviour
         {
             float target = _isOpen ? 1f : 0f;
             _progress = Mathf.MoveTowards(_progress, target, _speed * Time.deltaTime);
-
             _doorVisuals.position = Vector3.Lerp(_startPos, _endPos, _progress);
 
             if (Mathf.Approximately(_progress, target))
@@ -93,33 +124,26 @@ public class VerticalDoor : MonoBehaviour
         }
     }
 
-    // ТОГГЛ: всегда переключает состояние (открыто  закрыто)
     public void ToggleDoor()
     {
-        if (_isAnimating) return; // Ждём окончания анимации
-
+        if (_isAnimating || isLocked) return;
         _isOpen = !_isOpen;
         _isAnimating = true;
-
-        // Если открыли — запускаем таймер авто-закрытия
-        if (_isOpen && _autoClose)
-        {
-            _openTime = Time.time;
-        }
+        if (_isOpen && _autoClose) _openTime = Time.time;
     }
 
-    // Открыть (если закрыта)
+    // Открыть (если закрыта) – может вызываться терминалом
     public void OpenDoor()
     {
         if (!_isOpen && !_isAnimating)
         {
+            isLocked = false;    // разблокируем принудительно
             _isOpen = true;
             _isAnimating = true;
             if (_autoClose) _openTime = Time.time;
         }
     }
 
-    // Закрыть (если открыта)
     public void CloseDoor()
     {
         if (_isOpen && !_isAnimating)
@@ -127,5 +151,11 @@ public class VerticalDoor : MonoBehaviour
             _isOpen = false;
             _isAnimating = true;
         }
+    }
+
+    void OnDestroy()
+    {
+        if (requiredObjective != null)
+            Objective.OnObjectiveCompleted -= OnSomeObjectiveCompleted;
     }
 }
