@@ -60,15 +60,15 @@ namespace Unity.FPS.Game
 
                 AudioUtility.SetMasterVolume(1 - timeRatio);
 
-                // See if it's time to load the end scene (after the delay)
                 if (Time.time >= m_TimeLoadEndGameScene)
                 {
-                    // ⚡⚡⚡ ИЗМЕНЕНИЕ ЗДЕСЬ ⚡⚡⚡
-                    // Всегда перезагружаем текущую сцену вместо загрузки Win/Lose сцен
-                    string currentSceneName = SceneManager.GetActiveScene().name;
-                    Debug.Log($"Перезагрузка сцены: {currentSceneName}");
-                    SceneManager.LoadScene(currentSceneName);
+                    string sceneToLoad = m_SceneToLoad;
+                    if (RestartCurrentScene)
+                        sceneToLoad = SceneManager.GetActiveScene().name;
+                    else if (string.IsNullOrEmpty(sceneToLoad))
+                        sceneToLoad = SceneManager.GetActiveScene().name;
 
+                    SceneManager.LoadScene(sceneToLoad);
                     GameIsEnding = false;
                 }
             }

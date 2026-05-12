@@ -62,7 +62,7 @@ MonoBehaviour:
   ShootType: 1
   ProjectilePrefab: {fileID: 8924682559891268397, guid: ec753d54f333bb944b8b04884ad63828,
     type: 3}
-  DelayBetweenShots: 0.8
+  DelayBetweenShots: 1
   BulletSpreadAngle: 0
   BulletsPerShot: 1
   RecoilForce: 1
@@ -234,8 +234,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   DetectionSourcePoint: {fileID: 4298048078001837962}
-  DetectionRange: 20
-  AttackRange: 10
+  DetectionRange: 100
+  AttackRange: 20
   KnownTargetTimeout: 12
   Animator: {fileID: 0}
 --- !u!1 &2681349195771923971
@@ -710,7 +710,7 @@ MonoBehaviour:
   DeathVfxSpawnPoint: {fileID: 6376723192443578975}
   LootPrefab: {fileID: 2529580269645609534, guid: 9973c412032becb4ca116ca08be62edf,
     type: 3}
-  DropRate: 1
+  DropRate: 0.2
   PathReachingRangeColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   AttackRangeColor: {r: 1, g: 0, b: 0, a: 1}
   DetectionRangeColor: {r: 0, g: 0, b: 1, a: 1}
@@ -779,7 +779,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
-  m_StoppingDistance: 4
+  m_StoppingDistance: 6
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -1012,7 +1012,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   DamageMultiplier: 1
-  SensibilityToSelfdamage: 0.5
+  SensibilityToSelfdamage: 0
 --- !u!1 &9044108258049153775
 GameObject:
   m_ObjectHideFlags: 0

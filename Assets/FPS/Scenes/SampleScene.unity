@@ -330,7 +330,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TimelineCutsceneLoader
   director: {fileID: 1572714031}
   nextSceneName: MainScene
-  delayAfterCutscene: 7
+  delayAfterCutscene: 5
 --- !u!4 &772208118
 Transform:
   m_ObjectHideFlags: 0
