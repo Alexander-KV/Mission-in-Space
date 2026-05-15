@@ -93,6 +93,8 @@ public class BombTimer : MonoBehaviour
 
     void TriggerDefeat()
     {
+        // ... твой существующий код ...
+
         // Стоп сирена
         if (sirenAudioSource != null) sirenAudioSource.Stop();
 
@@ -108,6 +110,16 @@ public class BombTimer : MonoBehaviour
         Cursor.visible = true;
 
         Debug.Log("Поражение — бомба взорвалась!");
+
+        // === ДОБАВЬ ЭТО ===
+        // Разморозка перед загрузкой (иначе сцена зависнет)
+        Invoke(nameof(LoadLoseScene), 1f);
+    }
+
+    void LoadLoseScene()
+    {
+        Time.timeScale = 1f; // Обязательно разморозить!
+        UnityEngine.SceneManagement.SceneManager.LoadScene("LoseScene"); // Имя твоей сцены поражения
     }
 
     // Вызывается ShipEscape при победе — останавливает таймер
@@ -117,5 +129,10 @@ public class BombTimer : MonoBehaviour
         if (sirenAudioSource != null) sirenAudioSource.Stop();
         playerCamera.transform.localPosition = originalCamPos;
         if (timerPanel != null) timerPanel.SetActive(false);
+    }
+    // Публичный метод для проверки состояния таймера
+    public bool IsTimerRunning()
+    {
+        return isRunning;
     }
 }

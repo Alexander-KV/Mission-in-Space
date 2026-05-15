@@ -1,58 +1,64 @@
+using Unity.FPS.Gameplay;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Unity.FPS.Gameplay;
 
-public class SimpleWinTrigger : MonoBehaviour
+public class ShipEscape : MonoBehaviour
 {
-    [Header("Настройки")]
-    public string winSceneName = "WinScene";
-    public GameObject promptText;
+    [Header("🔗 Ссылки")]
+    public BombTimer bombTimer;           // Перетащи объект с BombTimer
+    public ObjectiveKillEnemies mission;  // Перетащи объект миссии
+    public GameObject escapePrompt;       // Текст "Нажми E чтобы улететь"
 
-    [Header("🎯 Миссия")]
-    public ObjectiveKillEnemies missionObjective;
+    [Header("⚙️ Настройки")]
+    public float escapeHoldTime = 0f;     // 0 = мгновенно, >0 = нужно держать
+    public string winSceneName = "WinScene";
 
     private bool isPlayerNear = false;
+    private float holdProgress = 0f;
 
     void Start()
     {
-        if (promptText != null) promptText.SetActive(false);
+        if (escapePrompt != null) escapePrompt.SetActive(false);
     }
 
     void Update()
     {
-        // 1. Показываем надпись, если игрок в зоне И босс убит
-        if (isPlayerNear && missionObjective != null && missionObjective.isBossKilled)
-        {
-            if (promptText != null && !promptText.activeSelf)
-                promptText.SetActive(true);
-        }
+        // Проверяем условия для показа надписи:
+        // 1. Игрок рядом
+        // 2. Таймер существует и запущен (бомба стоит)
+        bool canEscape = isPlayerNear && bombTimer != null && bombTimer.IsTimerRunning();
 
-        // 2. Обрабатываем нажатие E
-        if (isPlayerNear && Input.GetKeyDown(KeyCode.E))
+        if (escapePrompt != null)
+            escapePrompt.SetActive(canEscape);
+
+        // Обработка нажатия/удержания E
+        if (canEscape && Input.GetKey(KeyCode.E))
         {
-            if (missionObjective != null && missionObjective.isBossKilled)
+            if (escapeHoldTime <= 0f)
             {
-                missionObjective.CompleteMissionAfterEscape();
-                Debug.Log("🚀 Победа! Загрузка сцены...");
-                Invoke(nameof(LoadWinScene), 1f);
+                // Мгновенный побег
+                EscapeSuccess();
+            }
+            else
+            {
+                // Прогресс удержания
+                holdProgress += Time.deltaTime / escapeHoldTime;
+                // Здесь можно добавить UI полоску, если нужно
+                if (holdProgress >= 1f)
+                    EscapeSuccess();
             }
         }
-    }
-
-    void LoadWinScene()
-    {
-        SceneManager.LoadScene(winSceneName);
+        else if (canEscape && escapeHoldTime > 0f)
+        {
+            // Сброс прогресса если отпустили E
+            holdProgress = 0f;
+        }
     }
 
     void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Player"))
-        {
             isPlayerNear = true;
-            // Проверяем сразу при входе
-            if (missionObjective != null && missionObjective.isBossKilled && promptText != null)
-                promptText.SetActive(true);
-        }
     }
 
     void OnTriggerExit(Collider other)
@@ -60,7 +66,24 @@ public class SimpleWinTrigger : MonoBehaviour
         if (other.CompareTag("Player"))
         {
             isPlayerNear = false;
-            if (promptText != null) promptText.SetActive(false);
+            holdProgress = 0f;
         }
+    }
+
+    void EscapeSuccess()
+    {
+        Debug.Log("🚀 ПОБЕГ УДАЛСЯ!");
+
+        // Останавливаем таймер и сирену
+        if (bombTimer != null)
+            bombTimer.StopTimer();
+
+        // Завершаем миссию
+        if (mission != null)
+            mission.CompleteMissionAfterEscape();
+
+        // Загружаем сцену победы
+        Time.timeScale = 1f; // На всякий случай
+        SceneManager.LoadScene(winSceneName);
     }
 }
