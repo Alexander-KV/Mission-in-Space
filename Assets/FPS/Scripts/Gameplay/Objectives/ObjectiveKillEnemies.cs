@@ -25,6 +25,15 @@ namespace Unity.FPS.Gameplay
         public GameObject CompletionMessageUI;
         public float MessageDisplayTime = 5f;
 
+        [Header("🎯 Тип миссии")]
+        [Tooltip("Если true - миссия завершится только после побега. Если false - после убийства всех врагов")]
+        public bool requiresBombAndEscape = false;
+
+        [Header("🎯 Бомба и побег")]
+        public bool isBossKilled = false;
+        public bool isBombPlanted = false;
+        public bool isEscaped = false;
+
         int m_KillTotal;
         int m_InitialEnemyCount;
         int m_RemainingEnemiesInZone;
@@ -55,7 +64,6 @@ namespace Unity.FPS.Gameplay
             if (string.IsNullOrEmpty(Description))
                 Description = GetUpdatedCounterAmount();
 
-            // Регистрируем эту цель и её UI в мониторе
             CompletionUIMonitor.RegisterObjective(this);
         }
 
@@ -98,10 +106,18 @@ namespace Unity.FPS.Gameplay
 
             if (targetRemaining == 0)
             {
-                CompleteObjective(string.Empty, GetUpdatedCounterAmount(), "Objective complete : " + Title);
-
-                // Сообщаем монитору, что цель завершена
-                CompletionUIMonitor.NotifyObjectiveCompleted(this);
+                if (requiresBombAndEscape && !isBossKilled)
+                {
+                    isBossKilled = true;
+                    Debug.Log("✅ Босс убит! Теперь установи бомбу и беги к кораблю...");
+                    UpdateObjective("БОСС УБИТ", "Установи бомбу в реакторном отсеке", "");
+                    // UI надписи теперь управляется ТОЛЬКО SimpleWinTrigger
+                }
+                else
+                {
+                    CompleteObjective(string.Empty, GetUpdatedCounterAmount(), "Objective complete : " + Title);
+                    CompletionUIMonitor.NotifyObjectiveCompleted(this);
+                }
             }
             else if (targetRemaining == 1)
             {
@@ -125,58 +141,50 @@ namespace Unity.FPS.Gameplay
                 return m_KillTotal + " / " + KillsToCompleteObjective;
         }
 
+        public void CompleteMissionAfterEscape()
+        {
+            if (isEscaped) return;
+            isEscaped = true;
+            Debug.Log(" МИССИЯ ВЫПОЛНЕНА!");
+            CompleteObjective("ПОБЕДА!", "Вы уничтожили босса и сбежали!", "Миссия выполнена!");
+            CompletionUIMonitor.NotifyObjectiveCompleted(this);
+        }
+
         void OnDestroy()
         {
             EventManager.RemoveListener<EnemyKillEvent>(OnEnemyKilled);
         }
     }
 
-    // ==================== ВСТРОЕННЫЙ МОНИТОР (тот же файл) ====================
+    // ==================== МОНИТОР ====================
     public class CompletionUIMonitor : MonoBehaviour
     {
         static CompletionUIMonitor instance;
         static bool monitorCreated = false;
-
-        // Словарь: цель -> информация (UI + длительность + завершена ли)
-        Dictionary<ObjectiveKillEnemies, (GameObject ui, float duration, bool completed)> tracked =
-            new Dictionary<ObjectiveKillEnemies, (GameObject, float, bool)>();
+        Dictionary<ObjectiveKillEnemies, (GameObject ui, float duration, bool completed)> tracked = new Dictionary<ObjectiveKillEnemies, (GameObject, float, bool)>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Initialize()
         {
             if (monitorCreated) return;
             monitorCreated = true;
-
             GameObject monitorObj = new GameObject("CompletionUIMonitor");
             DontDestroyOnLoad(monitorObj);
             instance = monitorObj.AddComponent<CompletionUIMonitor>();
         }
 
-        void Awake()
-        {
-            // Немедленно выключаем все UI-сообщения (до первого кадра)
-            DisableAllCompletionUIs();
-            SceneManager.sceneLoaded += OnSceneLoaded;
-        }
-
-        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            // При перезагрузке сцены (например, после смерти) тоже выключаем UI
-            DisableAllCompletionUIs();
-        }
+        void Awake() { DisableAllCompletionUIs(); SceneManager.sceneLoaded += OnSceneLoaded; }
+        void OnSceneLoaded(Scene scene, LoadSceneMode mode) { DisableAllCompletionUIs(); }
 
         void DisableAllCompletionUIs()
         {
-            var allObjectives = FindObjectsByType<ObjectiveKillEnemies>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            var allObjectives = FindObjectsByType<ObjectiveKillEnemies>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var obj in allObjectives)
             {
                 if (obj.CompletionMessageUI != null)
                 {
                     obj.CompletionMessageUI.SetActive(false);
-                    // Обновляем словарь, если цель ещё не была зарегистрирована
-                    if (!tracked.ContainsKey(obj))
-                        tracked[obj] = (obj.CompletionMessageUI, obj.MessageDisplayTime, false);
+                    if (!tracked.ContainsKey(obj)) tracked[obj] = (obj.CompletionMessageUI, obj.MessageDisplayTime, false);
                 }
             }
         }
@@ -184,11 +192,9 @@ namespace Unity.FPS.Gameplay
         public static void RegisterObjective(ObjectiveKillEnemies objective)
         {
             if (instance == null || objective.CompletionMessageUI == null) return;
-
             if (!instance.tracked.ContainsKey(objective))
             {
                 instance.tracked.Add(objective, (objective.CompletionMessageUI, objective.MessageDisplayTime, false));
-                // Сразу выключаем UI, даже если он был включён по ошибке
                 objective.CompletionMessageUI.SetActive(false);
             }
         }
@@ -196,75 +202,46 @@ namespace Unity.FPS.Gameplay
         public static void NotifyObjectiveCompleted(ObjectiveKillEnemies objective)
         {
             if (instance == null) return;
-
             if (instance.tracked.TryGetValue(objective, out var data))
             {
                 data.completed = true;
                 instance.tracked[objective] = data;
-
-                if (data.ui != null)
-                    data.ui.SetActive(true);
-
-                if (data.duration > 0f)
-                    instance.StartCoroutine(instance.HideAfterDelay(data.ui, data.duration));
+                if (data.ui != null) data.ui.SetActive(true);
+                if (data.duration > 0f) instance.StartCoroutine(instance.HideAfterDelay(data.ui, data.duration));
             }
         }
 
-        IEnumerator HideAfterDelay(GameObject ui, float delay)
-        {
-            yield return new WaitForSeconds(delay);
-            if (ui != null)
-                ui.SetActive(false);
-        }
+        IEnumerator HideAfterDelay(GameObject ui, float delay) { yield return new WaitForSeconds(delay); if (ui != null) ui.SetActive(false); }
 
         void Update()
         {
-            // Постоянно следим, чтобы UI не включился до завершения цели
             foreach (var kvp in tracked)
             {
                 var obj = kvp.Key;
                 var data = kvp.Value;
                 if (obj == null || data.ui == null) continue;
-
-                if (!obj.IsCompleted && data.ui.activeSelf)
-                    data.ui.SetActive(false);
+                if (!obj.IsCompleted && data.ui.activeSelf) data.ui.SetActive(false);
             }
-
-            // Удаляем уничтоженные цели из словаря
             RemoveDestroyedObjectives();
         }
 
         void RemoveDestroyedObjectives()
         {
             var keysToRemove = new List<ObjectiveKillEnemies>();
-            foreach (var kvp in tracked)
-            {
-                if (kvp.Key == null)
-                    keysToRemove.Add(kvp.Key);
-            }
-            foreach (var key in keysToRemove)
-                tracked.Remove(key);
+            foreach (var kvp in tracked) if (kvp.Key == null) keysToRemove.Add(kvp.Key);
+            foreach (var key in keysToRemove) tracked.Remove(key);
         }
 
-        void OnDestroy()
-        {
-            SceneManager.sceneLoaded -= OnSceneLoaded;
-        }
+        void OnDestroy() { SceneManager.sceneLoaded -= OnSceneLoaded; }
     }
 
-    // Вспомогательный метод расширения для удаления по условию (на случай, если потребуется)
     public static class DictionaryExtensions
     {
         public static void RemoveWhere<TKey, TValue>(this Dictionary<TKey, TValue> dict, System.Func<KeyValuePair<TKey, TValue>, bool> predicate)
         {
             var keysToRemove = new List<TKey>();
-            foreach (var kvp in dict)
-            {
-                if (predicate(kvp))
-                    keysToRemove.Add(kvp.Key);
-            }
-            foreach (var key in keysToRemove)
-                dict.Remove(key);
+            foreach (var kvp in dict) if (predicate(kvp)) keysToRemove.Add(kvp.Key);
+            foreach (var key in keysToRemove) dict.Remove(key);
         }
     }
 }
