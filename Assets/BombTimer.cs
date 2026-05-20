@@ -1,20 +1,21 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.SceneManagement;   // <-- для SceneManager
 
 public class BombTimer : MonoBehaviour
 {
     [Header("Таймер")]
-    public float timerDuration = 60f;         // 60 секунд
+    public float timerDuration = 60f;
 
     [Header("UI")]
-    public GameObject timerPanel;             // панель с таймером
-    public TextMeshProUGUI timerText;         // текст таймера
-    public GameObject defeatPanel;           // экран поражения
+    public GameObject timerPanel;
+    public TextMeshProUGUI timerText;
+    public GameObject defeatPanel;
 
     [Header("Звук")]
-    public AudioSource sirenAudioSource;     // источник звука сирены
-    public AudioClip sirenClip;              // клип сирены
+    public AudioSource sirenAudioSource;
+    public AudioClip sirenClip;
 
     [Header("Тряска камеры")]
     public float shakeIntensity = 0.05f;
@@ -39,7 +40,6 @@ public class BombTimer : MonoBehaviour
 
         if (timerPanel != null) timerPanel.SetActive(true);
 
-        // Запускаем сирену
         if (sirenAudioSource != null && sirenClip != null)
         {
             sirenAudioSource.clip = sirenClip;
@@ -56,21 +56,16 @@ public class BombTimer : MonoBehaviour
 
         timeLeft -= Time.deltaTime;
 
-        // Обновляем текст таймера
         if (timerText != null)
         {
             int minutes = Mathf.FloorToInt(timeLeft / 60f);
             int seconds = Mathf.FloorToInt(timeLeft % 60f);
             timerText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
-
-            // Текст краснеет когда < 15 сек
             timerText.color = timeLeft < 15f ? Color.red : Color.white;
         }
 
-        // Тряска камеры
         ShakeCamera();
 
-        // Время вышло — поражение
         if (timeLeft <= 0f)
         {
             timeLeft = 0f;
@@ -81,8 +76,7 @@ public class BombTimer : MonoBehaviour
 
     void ShakeCamera()
     {
-        // Нарастающая тряска по мере убывания времени
-        float progress = 1f - (timeLeft / timerDuration); // 0 → 1
+        float progress = 1f - (timeLeft / timerDuration);
         float currentIntensity = shakeIntensity * progress;
 
         float offsetX = Mathf.Sin(Time.time * shakeFrequency) * currentIntensity;
@@ -93,36 +87,27 @@ public class BombTimer : MonoBehaviour
 
     void TriggerDefeat()
     {
-        // ... твой существующий код ...
-
-        // Стоп сирена
         if (sirenAudioSource != null) sirenAudioSource.Stop();
-
-        // Восстанавливаем камеру
         playerCamera.transform.localPosition = originalCamPos;
 
-        // Показываем экран поражения
         if (defeatPanel != null) defeatPanel.SetActive(true);
 
-        // Замораживаем игру
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
         Debug.Log("Поражение — бомба взорвалась!");
 
-        // === ДОБАВЬ ЭТО ===
-        // Разморозка перед загрузкой (иначе сцена зависнет)
-        Invoke(nameof(LoadLoseScene), 1f);
+        // Загрузка LoseScene через 1 секунду (чтобы игрок увидел надпись)
+        Invoke(nameof(LoadLoseScene), 0f);
     }
 
     void LoadLoseScene()
     {
-        Time.timeScale = 1f; // Обязательно разморозить!
-        UnityEngine.SceneManagement.SceneManager.LoadScene("LoseScene"); // Имя твоей сцены поражения
+        Time.timeScale = 0f;   // обязательно разморозить игру перед загрузкой сцены
+        SceneManager.LoadScene("LoseScene");
     }
 
-    // Вызывается ShipEscape при победе — останавливает таймер
     public void StopTimer()
     {
         isRunning = false;
@@ -130,7 +115,7 @@ public class BombTimer : MonoBehaviour
         playerCamera.transform.localPosition = originalCamPos;
         if (timerPanel != null) timerPanel.SetActive(false);
     }
-    // Публичный метод для проверки состояния таймера
+
     public bool IsTimerRunning()
     {
         return isRunning;

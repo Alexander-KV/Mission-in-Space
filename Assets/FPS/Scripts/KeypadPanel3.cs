@@ -3,6 +3,8 @@ using Unity.FPS.Game;
 using Unity.FPS.Gameplay;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public class KeypadPanel3 : MonoBehaviour
 {
@@ -20,7 +22,13 @@ public class KeypadPanel3 : MonoBehaviour
 
     [Header("Player Control")]
     public GameObject player;
-    public GameObject crosshair;  // перетащите сюда объект прицела (например, Crosshair)
+    public GameObject crosshair;
+
+    // Списки для хранения найденных компонентов, которые мы отключим
+    private List<MonoBehaviour> disabledComponents = new List<MonoBehaviour>();
+    private List<GameObject> disabledWeapons = new List<GameObject>();
+    private Rigidbody playerRigidbody;
+    private bool wasKinematic;
 
     void Start()
     {
@@ -32,6 +40,12 @@ public class KeypadPanel3 : MonoBehaviour
     {
         if (panelObject != null && panelObject.activeSelf)
         {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
+            if (EventSystem.current != null)
+                EventSystem.current.SetSelectedGameObject(null);
+
             if (Input.GetKeyDown(KeyCode.T))
             {
                 HidePanel();
@@ -101,44 +115,97 @@ public class KeypadPanel3 : MonoBehaviour
 
     void LockPlayer()
     {
-        if (player != null)
+        if (player == null) return;
+
+        disabledComponents.Clear();
+        disabledWeapons.Clear();
+
+        // 1. Отключаем все скрипты, которые обычно отвечают за управление
+        MonoBehaviour[] allScripts = player.GetComponentsInChildren<MonoBehaviour>();
+        foreach (var script in allScripts)
         {
-            // Отключаем ввод
-            var input = player.GetComponent<PlayerInputHandler>();
-            if (input != null) input.enabled = false;
+            if (script == null || script == this) continue;
 
-            // Отключаем объект с оружием
-            Transform weapon = player.transform.Find("Weapon_Blaster");
-            if (weapon != null)
-                weapon.gameObject.SetActive(false);
-            else
-                Debug.LogWarning("Weapon_Blaster not found on player");
-
-            // Отключаем прицел, если он указан
-            if (crosshair != null)
-                crosshair.SetActive(false);
-
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            // Отключаем скрипты движения, камеры, оружия, взаимодействия
+            string name = script.GetType().Name.ToLower();
+            if (name.Contains("input") || name.Contains("character") ||
+                name.Contains("weapon") || name.Contains("camera") ||
+                name.Contains("interact") || name.Contains("motor"))
+            {
+                if (script.enabled)
+                {
+                    script.enabled = false;
+                    disabledComponents.Add(script);
+                }
+            }
         }
+
+        // 2. Отключаем дочерние объекты с оружием (все, у кого в имени есть "Weapon" или "Gun")
+        foreach (Transform child in player.GetComponentsInChildren<Transform>())
+        {
+            if (child.gameObject != player &&
+                (child.name.ToLower().Contains("weapon") || child.name.ToLower().Contains("gun")))
+            {
+                if (child.gameObject.activeSelf)
+                {
+                    child.gameObject.SetActive(false);
+                    disabledWeapons.Add(child.gameObject);
+                }
+            }
+        }
+
+        // 3. Отключаем прицел
+        if (crosshair != null && crosshair.activeSelf)
+        {
+            crosshair.SetActive(false);
+            disabledWeapons.Add(crosshair); // чтобы включить обратно
+        }
+
+        // 4. Останавливаем физическое движение
+        playerRigidbody = player.GetComponent<Rigidbody>();
+        if (playerRigidbody != null)
+        {
+            wasKinematic = playerRigidbody.isKinematic;
+            playerRigidbody.isKinematic = true;
+            playerRigidbody.velocity = Vector3.zero;
+            playerRigidbody.angularVelocity = Vector3.zero;
+        }
+
+        // 5. Разблокируем курсор
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     void UnlockPlayer()
     {
-        if (player != null)
+        if (player == null) return;
+
+        // Включаем обратно отключенные скрипты
+        foreach (var script in disabledComponents)
         {
-            var input = player.GetComponent<PlayerInputHandler>();
-            if (input != null) input.enabled = true;
-
-            Transform weapon = player.transform.Find("Weapon_Blaster");
-            if (weapon != null)
-                weapon.gameObject.SetActive(true);
-
-            if (crosshair != null)
-                crosshair.SetActive(true);
-
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            if (script != null)
+                script.enabled = true;
         }
+        disabledComponents.Clear();
+
+        // Включаем оружие и прицел
+        foreach (var obj in disabledWeapons)
+        {
+            if (obj != null)
+                obj.SetActive(true);
+        }
+        disabledWeapons.Clear();
+
+        // Восстанавливаем Rigidbody
+        if (playerRigidbody != null)
+        {
+            playerRigidbody.isKinematic = wasKinematic;
+            playerRigidbody.velocity = Vector3.zero;
+            playerRigidbody.angularVelocity = Vector3.zero;
+        }
+
+        // Запираем курсор обратно
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 }
