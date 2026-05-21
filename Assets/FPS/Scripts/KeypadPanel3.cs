@@ -24,7 +24,7 @@ public class KeypadPanel3 : MonoBehaviour
     public GameObject player;
     public GameObject crosshair;
 
-    // Списки для хранения найденных компонентов, которые мы отключим
+    // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     private List<MonoBehaviour> disabledComponents = new List<MonoBehaviour>();
     private List<GameObject> disabledWeapons = new List<GameObject>();
     private Rigidbody playerRigidbody;
@@ -46,7 +46,7 @@ public class KeypadPanel3 : MonoBehaviour
             if (EventSystem.current != null)
                 EventSystem.current.SetSelectedGameObject(null);
 
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Input.GetKeyDown(KeyCode.T) || Input.GetKeyDown(KeyCode.Escape))
             {
                 HidePanel();
             }
@@ -66,7 +66,7 @@ public class KeypadPanel3 : MonoBehaviour
     {
         if (currentInput == correctCode)
         {
-            Debug.Log("Код верный!");
+            Debug.Log("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ!");
             if (targetDoor != null)
                 targetDoor.OpenDoor();
 
@@ -77,7 +77,7 @@ public class KeypadPanel3 : MonoBehaviour
         }
         else
         {
-            Debug.Log("Неверный код!");
+            Debug.Log("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ!");
             currentInput = "";
             UpdateDisplay();
         }
@@ -120,13 +120,13 @@ public class KeypadPanel3 : MonoBehaviour
         disabledComponents.Clear();
         disabledWeapons.Clear();
 
-        // 1. Отключаем все скрипты, которые обычно отвечают за управление
+        // 1. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         MonoBehaviour[] allScripts = player.GetComponentsInChildren<MonoBehaviour>();
         foreach (var script in allScripts)
         {
             if (script == null || script == this) continue;
 
-            // Отключаем скрипты движения, камеры, оружия, взаимодействия
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             string name = script.GetType().Name.ToLower();
             if (name.Contains("input") || name.Contains("character") ||
                 name.Contains("weapon") || name.Contains("camera") ||
@@ -140,7 +140,7 @@ public class KeypadPanel3 : MonoBehaviour
             }
         }
 
-        // 2. Отключаем дочерние объекты с оружием (все, у кого в имени есть "Weapon" или "Gun")
+        // 2. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ (пїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ "Weapon" пїЅпїЅпїЅ "Gun")
         foreach (Transform child in player.GetComponentsInChildren<Transform>())
         {
             if (child.gameObject != player &&
@@ -154,24 +154,24 @@ public class KeypadPanel3 : MonoBehaviour
             }
         }
 
-        // 3. Отключаем прицел
+        // 3. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         if (crosshair != null && crosshair.activeSelf)
         {
             crosshair.SetActive(false);
-            disabledWeapons.Add(crosshair); // чтобы включить обратно
+            disabledWeapons.Add(crosshair); // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         }
 
-        // 4. Останавливаем физическое движение
+        // 4. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         playerRigidbody = player.GetComponent<Rigidbody>();
         if (playerRigidbody != null)
         {
             wasKinematic = playerRigidbody.isKinematic;
             playerRigidbody.isKinematic = true;
-            playerRigidbody.velocity = Vector3.zero;
+            playerRigidbody.linearVelocity = Vector3.zero;
             playerRigidbody.angularVelocity = Vector3.zero;
         }
 
-        // 5. Разблокируем курсор
+        // 5. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -180,7 +180,7 @@ public class KeypadPanel3 : MonoBehaviour
     {
         if (player == null) return;
 
-        // Включаем обратно отключенные скрипты
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         foreach (var script in disabledComponents)
         {
             if (script != null)
@@ -188,7 +188,7 @@ public class KeypadPanel3 : MonoBehaviour
         }
         disabledComponents.Clear();
 
-        // Включаем оружие и прицел
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
         foreach (var obj in disabledWeapons)
         {
             if (obj != null)
@@ -196,15 +196,15 @@ public class KeypadPanel3 : MonoBehaviour
         }
         disabledWeapons.Clear();
 
-        // Восстанавливаем Rigidbody
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Rigidbody
         if (playerRigidbody != null)
         {
             playerRigidbody.isKinematic = wasKinematic;
-            playerRigidbody.velocity = Vector3.zero;
+            playerRigidbody.linearVelocity = Vector3.zero;
             playerRigidbody.angularVelocity = Vector3.zero;
         }
 
-        // Запираем курсор обратно
+        // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
